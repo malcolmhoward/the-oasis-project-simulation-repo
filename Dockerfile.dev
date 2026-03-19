@@ -1,0 +1,30 @@
+# Dockerfile.dev - E.C.H.O. Simulation Framework Development Container (x86/x64)
+#
+# Python environment with all three simulation layers installed, plus C toolchain
+# for HAL header development (Phase 2-3).
+#
+# Usage:
+#   docker build -f Dockerfile.dev -t echo-dev .
+#   docker run --rm -it echo-dev
+#   docker run --rm echo-dev pytest tests/
+
+FROM python:3.12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# C toolchain for HAL header development (Phase 2-3)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy simulation framework source
+WORKDIR /opt/echo
+COPY . .
+
+# Install all layers + dev tools
+RUN pip install --no-cache-dir -e ".[all,dev]"
+
+# Run tests by default to verify the build
+CMD ["pytest", "tests/", "-v"]
