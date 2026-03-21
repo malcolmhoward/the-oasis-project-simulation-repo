@@ -122,3 +122,70 @@ Null-sink audio output.
 |-----------|------|---------|-------------|
 | `sample_rate` | integer | `16000` | Samples per second |
 | `channels` | integer | `1` | Audio channels |
+
+---
+
+## Network Layer — `simulation.layer1`
+
+### `simulation.hal.network` — Interface Contracts
+
+| Interface | Methods | Description |
+|-----------|---------|-------------|
+| `TopicBuilderInterface` | `status()`, `discovery(capability)`, `command()`, `broadcast()`, `peer_status(peer_id)`, `sim_discovery()` | MQTT (Message Queuing Telemetry Transport) topic string construction |
+| `MessageSerializerInterface` | `status_online(...)`, `status_offline()`, `discovery(elements)`, `command(...)`, `response(...)` | OCP (OASIS Communications Protocol) message serialization to JSON |
+| `OCPPeerInterface` | `set_lwt()`, `start()`, `stop()`, `is_running` | OCP peer lifecycle |
+| `DAP2SatelliteInterface` | `connect()`, `disconnect()`, `query(text)`, `is_connected` | DAP2 (Dawn Audio Protocol 2.0) satellite client |
+| `DAP2DaemonInterface` | `start()`, `stop()` | DAP2 mock server |
+
+### `TopicBuilder(TopicBuilderInterface)`
+
+Builds MQTT topic strings per OCP conventions.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `component` | string | Component name (e.g., `"mirage"` → `"hud"`, `"dawn"` → `"dawn"`) |
+
+### `MessageSerializer(MessageSerializerInterface)`
+
+Serializes OCP messages to JSON strings.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `device` | string | Device name included in message payloads |
+
+### `OCPPeer(OCPPeerInterface)`
+
+Simulated OCP peer with status, discovery, and heartbeat.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `client` | paho MQTT client | (required) | Connected MQTT client |
+| `peer_id` | string | (required) | Unique peer identifier |
+| `component` | string | (required) | O.A.S.I.S. component name |
+| `embodiment` | `Embodiment` | `E4` | `Embodiment.E3` (physical) or `Embodiment.E4` (software) |
+| `capabilities` | list of strings | `[]` | Advertised in discovery messages |
+| `version` | string | `"0.0.0-sim"` | Version in status messages |
+| `heartbeat_interval` | float | `30.0` | Seconds between heartbeat publishes |
+
+### `DAP2Satellite(DAP2SatelliteInterface)`
+
+WebSocket client for DAP2 satellite protocol.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `uri` | string | `"ws://localhost:3000"` | D.A.W.N. daemon WebSocket URI |
+| `name` | string | `"Mock Satellite"` | Satellite display name |
+| `location` | string | `"simulation"` | Room or location identifier |
+| `ping_interval` | float | `10.0` | Seconds between keepalive pings |
+
+`query(text)` returns a `StreamResponse` with: `stream_id` (integer), `text` (assembled response string), `reason` (string), `states` (list of state maps).
+
+### `DAP2MockDaemon(DAP2DaemonInterface)`
+
+Standalone DAP2 mock server for testing without D.A.W.N.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `host` | string | `"localhost"` | Bind address |
+| `port` | integer | `3000` | Bind port |
+| `query_handler` | callable or None | echo handler | `(text: str) -> str` response generator |
