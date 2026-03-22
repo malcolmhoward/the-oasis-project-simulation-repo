@@ -178,6 +178,88 @@ The DAP2 satellite mock supports:
 - Text-path command injection
 - Synthetic `state`, `stream_delta`, `stream_end` responses
 
+## Platform Layer — Service Simulation
+
+The Platform layer (Layer 2) simulates the external software services that
+D.A.W.N. depends on at runtime. No GPU, API keys, or running services required.
+
+### LLM Mock — Voice Command Skills
+
+If you have used a voice assistant like Amazon Alexa or Google Assistant, the
+LLM (Large Language Model) mock works on the same principle: you define
+"skills" — recognized input patterns that map to specific actions — and the
+mock matches user input against those skills deterministically, without any
+AI inference.
+
+| Voice Assistant Concept | E.C.H.O. Equivalent |
+|------------------------|---------------------|
+| Alexa Skill / Google Action | `llm.add_tool_rule(keyword, tool, args)` |
+| Response template | `llm.add_rule(keyword, response)` |
+| NLU intent matching | Keyword substring matching (simpler, deterministic) |
+| Skill invokes a smart home API | Tool call output feeds into `HomeAssistantMock` |
+| "I don't know that" | `default_response` (configurable) |
+
+```python
+from simulation.layer2.llm_mock import LLMMock
+
+llm = LLMMock()
+
+# Define skills — recognized commands that map to tool calls
+llm.add_tool_rule("turn on the lights", tool="homeassistant",
+    args={"action": "turn_on", "entity_id": "light.kitchen_lights"})
+llm.add_tool_rule("turn off the lights", tool="homeassistant",
+    args={"action": "turn_off", "entity_id": "light.kitchen_lights"})
+
+# Define conversational responses
+llm.add_rule("weather", "It's sunny and 72 degrees.")
+llm.add_rule("hello", "Hey there! How can I help?")
+
+# Use in D.A.W.N.'s pipeline: speech → text → LLM mock → action
+result = llm.tool_call("turn on the lights please")
+# {"tool": "homeassistant", "args": {"action": "turn_on", "entity_id": "light.kitchen_lights"}}
+
+response = llm.complete("what's the weather today?")
+# "It's sunny and 72 degrees."
+```
+
+### Home Assistant Mock — Smart Home Control
+
+```python
+from simulation.layer2.ha_mock import HomeAssistantMock
+
+ha = HomeAssistantMock()
+
+# Check current state
+state = ha.get_state("light.kitchen_lights")
+print(state["state"])  # "off"
+
+# Turn on the lights (same call D.A.W.N. makes via tool execution)
+ha.call_service("light", "turn_on", {"entity_id": "light.kitchen_lights"})
+print(ha.get_state("light.kitchen_lights")["state"])  # "on"
+
+# Also runs as an HTTP server for integration testing
+ha.start()   # Flask server on localhost:8123
+# ... D.A.W.N. can now call http://localhost:8123/api/states ...
+ha.stop()
+```
+
+### Memory Mock — Fact Retrieval
+
+```python
+from simulation.layer2.memory_mock import MemoryMock
+
+mem = MemoryMock()
+
+# Store facts that D.A.W.N. can retrieve during conversation
+mem.store("The kitchen lights are Philips Hue bulbs.", metadata={"room": "kitchen"})
+mem.store("The thermostat is set to 21 degrees.", metadata={"room": "living room"})
+
+# Retrieve by keyword similarity
+results = mem.retrieve("kitchen lights")
+print(results[0]["text"])   # "The kitchen lights are Philips Hue bulbs."
+print(results[0]["score"])  # 1.0 (both query words found)
+```
+
 ## Troubleshooting
 
 ### Import Errors

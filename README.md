@@ -235,8 +235,6 @@ Enables testing of O.A.S.I.S. protocol interactions without live hardware:
 
 ### Platform Layer — Software Service Simulation
 
-> Platform layer is under active development. See `simulation/layer2/` for current status.
-
 In-process Flask servers and deterministic stubs for external services:
 
 - **`ha_mock.py`** — Home Assistant REST API mock (`/api/states`, `/api/services/...`)
@@ -272,7 +270,7 @@ cd simulation_framework && pip install -e .
 |-------|--------|
 | Device — Hardware primitives | **Available** |
 | Network — Protocol simulation | **Available** |
-| Platform — Service simulation | In development |
+| Platform — Service simulation | **Available** |
 
 ## Contributing
 
