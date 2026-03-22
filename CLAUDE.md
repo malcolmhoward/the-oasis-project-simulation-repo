@@ -71,26 +71,69 @@ pytest tests/ --cov=simulation
 
 ## Working with This Codebase
 
+### HAL-First Development Pattern
+
+All mock classes implement interface contracts defined in the HAL (Hardware
+Abstraction Layer) at `simulation/hal/`. **The interface should be defined
+before its implementation.** Writing implementations first risks implicit
+contracts that are harder to maintain across languages — future C HAL headers
+(Phase 2) need to derive from the same interface definitions.
+
+```
+simulation/hal/device.py     ← defines SensorInterface, GPIOInterface, ...
+simulation/layer0/sensor.py  ← MockSensor(SensorInterface)
+simulation/layer0/gpio.py    ← MockGPIO(GPIOInterface)
+```
+
+This ensures:
+- The contract is explicit and reviewable before implementation details
+- Both Python mocks and future C HAL headers conform to the same interface
+- In git history, the HAL commit precedes the implementation commit
+
 ### Adding a New Mock Class
 
-1. Create `simulation/layer<N>/<module>.py` in the appropriate layer
-2. Add the class to `simulation/layer<N>/__init__.py`
-3. If Layer 0: add convenience import to `simulation/__init__.py` and `__all__`
-4. Add tests in `tests/test_layer<N>.py`
-5. Verify the new class has no imports above its layer's dependency tier
+1. **Define the interface** in `simulation/hal/<layer>.py` as an ABC (Abstract
+   Base Class) with `@abstractmethod` for each public method
+2. **Commit the interface** before writing the implementation
+3. Create the mock in `simulation/layer<N>/<module>.py`, inheriting from the
+   HAL ABC
+4. Add the class to `simulation/layer<N>/__init__.py`
+5. If Layer 0: add convenience import to `simulation/__init__.py` and `__all__`
+6. Add tests in `tests/test_layer<N>.py`
+7. Verify the new class has no imports above its layer's dependency tier
 
 ### Layer Dependency Rules
 
-- Layer 0 modules must NOT import from `layer1` or `layer2`
-- Layer 1 modules must NOT import from `layer2`
-- Layer 2 may import from `layer0` and `layer1`
-- No layer may import from component repos (M.I.R.A.G.E., D.A.W.N., etc.)
+- `hal/` modules must NOT import from any `layer` module
+- Layer 0 modules may import from `hal/` only
+- Layer 1 modules may import from `hal/` and `layer0/`
+- Layer 2 modules may import from `hal/`, `layer0/`, and `layer1/`
+- No module may import from component repos (M.I.R.A.G.E., D.A.W.N., etc.)
 
 ### Mock Class Design Principles
 
+- Mock classes should **implement a HAL ABC** rather than defining interfaces implicitly — without an explicit interface, future implementations in other languages cannot verify conformance
 - Mock classes must be **interface-compatible** with the real drivers they replace
-- Support **selective injection**: applications can mix real and mock implementations
 - Each mock should be usable in isolation — no implicit global state
+
+### Injection Modes
+
+The simulation framework supports three injection phases (see ADR-0003 Amendment 4):
+
+| Phase | When | Description |
+|-------|------|-------------|
+| **Default** | Container/process start | All mocks active; no configuration needed |
+| **Explicit** | Container/process start | User declares which deps are real vs. mocked |
+| **Runtime** | After launch | Hardware/services appear or disappear; implementations swap transparently |
+
+Runtime injection enables **graceful degradation** — when real hardware disconnects,
+the framework falls back to mocks without crashing. When hardware reconnects, it
+promotes back to the real driver. This aligns with O.A.S.I.S.'s loose coupling and
+OCP component discovery architecture.
+
+Component code programs against the HAL interface. A **Provider** (not part of the
+HAL itself) manages which implementation is active and handles swapping. See
+ADR-0003 Amendment 4 for the full design.
 
 ## O.A.S.I.S. Component Interaction
 
