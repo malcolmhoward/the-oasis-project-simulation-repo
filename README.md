@@ -227,8 +227,6 @@ speaker.stop()
 
 ### Network Layer — Protocol Simulation
 
-> Network layer is under active development. See `simulation/layer1/` for current status.
-
 Enables testing of O.A.S.I.S. protocol interactions without live hardware:
 
 - **`mqtt.py`** — MQTT topic publisher/subscriber helpers with message serializers
@@ -273,7 +271,7 @@ cd simulation_framework && pip install -e .
 | Layer | Status |
 |-------|--------|
 | Device — Hardware primitives | **Available** |
-| Network — Protocol simulation | In development |
+| Network — Protocol simulation | **Available** |
 | Platform — Service simulation | In development |
 
 ## Contributing
