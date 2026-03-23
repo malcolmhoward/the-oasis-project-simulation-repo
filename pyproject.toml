@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oasis-simulation"
+version = "0.1.0"
+description = "Simulation framework for O.A.S.I.S. development and testing without physical hardware or live external services"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+readme = "README.md"
+
+# Layer 0 has no runtime dependencies beyond the standard library.
+# numpy is optional (only needed if callers want to convert frame data to arrays).
+dependencies = []
+
+[project.optional-dependencies]
+# Layer 1: protocol simulation
+layer1 = [
+    "paho-mqtt>=1.6.1",
+    "websockets>=11.0",
+]
+# Layer 2: software behavior simulation
+layer2 = [
+    "flask>=3.0",
+]
+# Full install (all layers)
+all = [
+    "paho-mqtt>=1.6.1",
+    "websockets>=11.0",
+    "flask>=3.0",
+]
+# Development / testing
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["simulation*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
