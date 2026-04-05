@@ -2,6 +2,12 @@
 
 Software simulators for O.A.S.I.S. hardware, protocols, and services — develop and test without physical hardware or live external service dependencies.
 
+## Why This Project?
+
+O.A.S.I.S. is a distributed system that spans NVIDIA Jetsons, Raspberry Pis, custom sensor arrays, and specialized software services. Without simulation, a contributor needs physical hardware or running infrastructure just to test their code. That is a steep barrier for an open-source project whose mission includes accessibility.
+
+The simulation framework removes that barrier. Every hardware interface and every external service dependency has a drop-in mock that runs on any 2 GB machine with Python or Docker. The goal is simple: **no contributor should be blocked by hardware they do not own**.
+
 ## Description
 
 The simulation framework provides drop-in replacements for the physical and software dependencies that O.A.S.I.S. components require at runtime:
@@ -58,8 +64,8 @@ There are two ways to use the simulation framework:
 
 | Access path | RAM | GPU | Host OS | Notes |
 |-------------|:---:|:---:|---------|-------|
-| Python simulation | 4 GB | Not required | Linux, macOS, Windows (WSL2), Chrome OS (Crostini) | Suitable for classroom use |
-| Docker image | 4 GB | Not required | **Linux, Windows, macOS** — any OS with Docker | Full simulation stack; no build required on recipient machine |
+| Python simulation | 2 GB | Not required | Linux, macOS, Windows (WSL2), Chrome OS (Crostini) | Suitable for classroom use |
+| Docker image | 2 GB | Not required | **Linux, Windows, macOS** — any OS with Docker | Full simulation stack; no build required on recipient machine |
 | Build locally | 8 GB | Not required | Linux (Debian/Ubuntu recommended) | Only needed for C/C++ source development |
 | Full target | 8 GB+ | Jetson GPU | Linux (JetPack) | Local LLM and real-time ASR viable |
 
@@ -230,8 +236,9 @@ speaker.stop()
 Enables testing of O.A.S.I.S. protocol interactions without live hardware:
 
 - **`mqtt.py`** — MQTT topic publisher/subscriber helpers with message serializers
-- **`ocp.py`** — OCP (O.A.S.I.S. Communications Protocol) request/response builder
+- **`ocp.py`** — OCP (O.A.S.I.S. Communications Protocol) peer registration with E1-E5 embodiment spectrum
 - **`dap2_client.py`** — DAP2 satellite WebSocket client (register, query, text-path command injection)
+- **`status_listeners.py`** — MQTT broadcast, TTS notification, audio alert, and WebUI status listeners
 
 ### Platform Layer — Software Service Simulation
 
@@ -239,7 +246,41 @@ In-process Flask servers and deterministic stubs for external services:
 
 - **`ha_mock.py`** — Home Assistant REST API mock (`/api/states`, `/api/services/...`)
 - **`llm_mock.py`** — LLM response simulator (keyword → tool call synthesis, streaming)
+- **`llm_http_server.py`** — OpenAI-compatible `/v1/chat/completions` HTTP wrapper around LLMMock
 - **`memory_mock.py`** — Memory/RAG stub (SQLite-backed fact store, keyword retrieval)
+
+### OCP Embodiment Spectrum
+
+OCP peers declare an embodiment type indicating their relationship to physical reality:
+
+| Type | Name | Description | Example |
+|------|------|-------------|---------|
+| E1 | Physical | Real hardware with sensors and actuators | Jetson, Raspberry Pi, Arduino |
+| E2 | Remote-Physical | Real hardware, remote operator | Robot driven wirelessly |
+| E3 | Digital/Virtual | Game engine avatar, simulation peer | Godot character, E.C.H.O. mock |
+| E4 | Software-Only | No body — pure service/infrastructure | LLM routing, session management |
+| E5 | Hybrid | Spans multiple types via Provider | Real camera + simulated sensors |
+
+All five types are implemented across O.A.S.I.S. ecosystem branches. The `Embodiment` enum in `simulation/layer1/ocp.py` currently defines E3 (physical) and E4 (software). The full E1-E5 taxonomy is specified in ADR-0003 Amendment 5 in S.C.O.P.E.
+
+### HAL Architecture
+
+All mock classes implement interface contracts defined as ABCs (Abstract Base Classes) in `simulation/hal/`. Two cross-cutting components support runtime flexibility:
+
+- **Provider** (`simulation/hal/provider.py`) — Thread-safe runtime hot-swap wrapper. Component code programs against the HAL interface; the Provider manages which implementation (mock or real) is active and handles transparent swapping. Supports swap callbacks for notification (SimulationStatus, MQTT broadcast, TTS) and graceful degradation when hardware disconnects.
+
+  ```python
+  from simulation.hal.provider import Provider
+  from simulation.layer0.camera import MockCamera
+
+  camera = Provider(MockCamera())
+  frame = camera.capture()       # MockCamera.capture()
+  camera.swap(RealCamera())      # hot-swap at runtime
+  frame = camera.capture()       # RealCamera.capture()
+  camera.swap(MockCamera())      # graceful fallback
+  ```
+
+- **SimulationStatus** (`simulation/hal/status.py`) — Per-interface registry tracking whether each dependency is simulated or live. Supports event listeners for mode-change notifications (MQTT broadcast, TTS alerts, WebUI status, structured logging).
 
 ### Running Tests
 
