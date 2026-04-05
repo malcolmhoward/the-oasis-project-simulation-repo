@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**E.C.H.O.** (working name) is the O.A.S.I.S. simulation framework — drop-in replacements for the hardware, protocols, and services that O.A.S.I.S. components depend on at runtime. It enables development and testing on any 4 GB device with Python or Docker, without specialized hardware, GPUs, or external services.
+**E.C.H.O.** (working name) is the O.A.S.I.S. simulation framework — drop-in replacements for the hardware, protocols, and services that O.A.S.I.S. components depend on at runtime. It enables development and testing on any 2 GB device with Python or Docker, without specialized hardware, GPUs, or external services.
 
 The framework follows a language-independent HAL design, serving both Python components (D.A.W.N., S.C.O.P.E.) and C components (M.I.R.A.G.E., A.U.R.A., S.P.A.R.K.).
 
@@ -42,9 +42,22 @@ Layer stability is enforced structurally — a breaking change in the Platform l
 | `simulation/layer0/spi.py` | MockSPI (loopback; pluggable response handlers) |
 | `simulation/layer0/camera.py` | MockCamera (frame metadata dict; no pixel data) |
 | `simulation/layer0/audio.py` | MockMicrophone (synthetic PCM), MockSpeaker (null sink) |
-| `simulation/layer1/` | Network layer (in development) |
-| `simulation/layer2/` | Platform layer (in development) |
+| `simulation/layer1/mqtt.py` | MQTT topic publisher/subscriber helpers |
+| `simulation/layer1/ocp.py` | OCP peer registration with E1-E5 embodiment spectrum |
+| `simulation/layer1/dap2_client.py` | DAP2 satellite WebSocket client |
+| `simulation/layer1/status_listeners.py` | MQTT broadcast, TTS, audio alert, WebUI status listeners |
+| `simulation/layer2/ha_mock.py` | Home Assistant REST API mock (Flask) |
+| `simulation/layer2/llm_mock.py` | LLM response simulator (keyword-to-tool-call, streaming) |
+| `simulation/layer2/llm_http_server.py` | OpenAI-compatible `/v1/chat/completions` HTTP wrapper |
+| `simulation/layer2/memory_mock.py` | Memory/RAG stub (SQLite-backed, keyword retrieval) |
+| `simulation/hal/provider.py` | Runtime hot-swap Provider (thread-safe) |
+| `simulation/hal/status.py` | SimulationStatus tracker (per-interface registry, event listeners) |
 | `tests/test_layer0.py` | Device layer test suite |
+| `tests/test_layer1.py` | Network layer test suite |
+| `tests/test_layer2.py` | Platform layer test suite |
+| `tests/test_provider.py` | Provider hot-swap test suite |
+| `tests/test_status.py` | SimulationStatus test suite |
+| `tests/test_status_listeners.py` | Status listeners test suite |
 | `pyproject.toml` | Build config; optional dep groups per layer |
 
 ## Commands
