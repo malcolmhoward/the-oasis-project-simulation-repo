@@ -189,3 +189,72 @@ Standalone DAP2 mock server for testing without D.A.W.N.
 | `host` | string | `"localhost"` | Bind address |
 | `port` | integer | `3000` | Bind port |
 | `query_handler` | callable or None | echo handler | `(text: str) -> str` response generator |
+
+---
+
+## Platform Layer — `simulation.layer2`
+
+### `simulation.hal.platform` — Interface Contracts
+
+| Interface | Methods | Description |
+|-----------|---------|-------------|
+| `HomeAssistantInterface` | `start()`, `stop()`, `get_states()`, `get_state(entity_id)`, `call_service(domain, service, data)` | Home Assistant REST API |
+| `LLMInterface` | `complete(prompt)`, `stream(prompt)`, `tool_call(prompt)` | LLM (Large Language Model) inference |
+| `MemoryInterface` | `store(text, metadata)`, `retrieve(query, top_k)`, `delete(fact_id)`, `count()` | RAG (Retrieval-Augmented Generation) fact store |
+
+### `HomeAssistantMock(HomeAssistantInterface)`
+
+Flask REST API server simulating Home Assistant.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `host` | string | `"localhost"` | Bind address |
+| `port` | integer | `8123` | Bind port |
+| `token` | string | `"mock-ha-token"` | Expected bearer token |
+| `entities` | list of maps or None | kitchen lights, bedroom lights, thermostat | Initial entity states |
+
+Supports: `turn_on`, `turn_off`, `toggle`, `set_temperature`. Access via HAL methods (`get_states()`, `call_service()`) or HTTP (`/api/states`, `/api/services/<domain>/<service>`).
+
+### `LLMMock(LLMInterface)`
+
+Keyword-to-response and keyword-to-tool-call mapping. Works like voice assistant skills (Amazon Alexa, Google Assistant) — recognized commands map to specific actions without AI inference.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `default_response` | string | `"I'm not sure..."` | Response when no rule matches |
+
+| Method | Description |
+|--------|-------------|
+| `add_rule(keyword, response)` | Map keyword to text response |
+| `add_tool_rule(keyword, tool, args)` | Map keyword to tool call |
+| `complete(prompt)` | Return matching response string |
+| `stream(prompt)` | Return word-level delta iterator |
+| `tool_call(prompt)` | Return matching tool call map or None |
+
+### `LLMHTTPServer`
+
+OpenAI-compatible HTTP wrapper for `LLMMock`. D.A.W.N.'s local LLM provider auto-detects this as a "generic OpenAI-compatible" endpoint.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `llm` | `LLMMock` | (required) | Mock LLM instance |
+| `host` | string | `"0.0.0.0"` | Bind address |
+| `port` | integer | `8080` | Bind port |
+| `model_name` | string | `"echo-mock"` | Model name in API responses |
+
+Endpoints: `POST /v1/chat/completions` (streaming and non-streaming), `GET /v1/models`.
+
+### `MemoryMock(MemoryInterface)`
+
+SQLite-backed fact store with keyword overlap scoring.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `db_path` | string | `":memory:"` | SQLite path; `":memory:"` for in-memory |
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `store(text, metadata)` | string (UUID) | Store a fact |
+| `retrieve(query, top_k)` | list of maps with `text`, `score`, optional `metadata` | Keyword-match retrieval |
+| `delete(fact_id)` | boolean | Delete by ID |
+| `count()` | integer | Total stored facts |
