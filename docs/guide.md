@@ -4,7 +4,7 @@
 
 ## Overview
 
-E.C.H.O. provides drop-in replacements for the hardware, protocols, and services that O.A.S.I.S. components depend on at runtime. It enables development and testing on any 4 GB device with Python or Docker — no Jetson, no GPU, and no external services required.
+E.C.H.O. provides drop-in replacements for the hardware, protocols, and services that O.A.S.I.S. components depend on at runtime. It enables development and testing on any 2 GB device with Python or Docker — no Jetson, no GPU, and no external services required.
 
 The framework is organized into three independent layers:
 
