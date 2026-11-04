@@ -4,6 +4,8 @@
 
 **E.C.H.O.** (working name) is the O.A.S.I.S. simulation framework — drop-in replacements for the hardware, protocols, and services that O.A.S.I.S. components depend on at runtime. It enables development and testing on any 2 GB device with Python or Docker, without specialized hardware, GPUs, or external services.
 
+Where a consumer has the real hardware, it can use real implementations of the same HAL interfaces instead: these live in `simulation/live/` (opt-in, never imported by `import simulation`), so the Provider pattern can hold whichever implementation the available hardware supports, with a simulation as the fallback. The first is GPU telemetry (`simulation/live/gpu/`).
+
 The framework follows a language-independent HAL design, serving both Python components (D.A.W.N., S.C.O.P.E.) and C components (M.I.R.A.G.E., A.U.R.A., S.P.A.R.K.).
 
 > **Naming note**: E.C.H.O. is a working name pending Kris Kersey's selection. See ADR-0007 in S.C.O.P.E. for the naming convention and candidate table.
@@ -42,6 +44,12 @@ Layer stability is enforced structurally — a breaking change in the Platform l
 | `simulation/layer0/spi.py` | MockSPI (loopback; pluggable response handlers) |
 | `simulation/layer0/camera.py` | MockCamera (frame metadata dict; no pixel data) |
 | `simulation/layer0/audio.py` | MockMicrophone (synthetic PCM), MockSpeaker (null sink) |
+| `simulation/layer0/gpu.py` | MockGpuTelemetry (thermal model, injectable faults) |
+| `simulation/live/gpu/` | Real GPU telemetry: windows-wddm (D3DKMT + PDH), intel-igcl, level-zero-sysman, nvml, linux-hwmon; `discover()` matches one card across sources by PCI IDs |
+| `simulation/live/gpu/hub.py` | GpuTelemetryHub: per-metric failover over sources, independent cross-check temperature, default source ranking |
+| `simulation/live/gpu/publish.py` | `python -m simulation.live.gpu.publish`: OCP v1.4 GpuTelemetry publisher (real or `--simulate`); needs `[layer1]` |
+| `simulation/live/gpu/messages.py` | GpuTelemetry, status and source_swapped message builders (pure functions) |
+| `docs/GPU_TELEMETRY.md` | GpuTelemetry message spec (topics, fields, events, consumer guidance) |
 | `simulation/layer1/mqtt.py` | MQTT topic publisher/subscriber helpers |
 | `simulation/layer1/ocp.py` | OCP peer registration with E1-E5 embodiment spectrum |
 | `simulation/layer1/dap2_client.py` | DAP2 satellite WebSocket client |
@@ -52,6 +60,9 @@ Layer stability is enforced structurally — a breaking change in the Platform l
 | `simulation/layer2/memory_mock.py` | Memory/RAG stub (SQLite-backed, keyword retrieval) |
 | `simulation/hal/provider.py` | Runtime hot-swap Provider (thread-safe) |
 | `simulation/hal/status.py` | SimulationStatus tracker (per-interface registry, event listeners) |
+| `simulation/hal/failover.py` | FailoverProvider: ranked candidates, automatic failover, exclusive pairs for cross-checks |
+| `tests/test_gpu.py` | GPU telemetry: interface, FailoverProvider, mock, live sources (hardware-free plus a smoke test) |
+| `tests/test_gpu_publish.py` | GpuTelemetryHub, GpuTelemetry messages, publisher (fake MQTT client and clock) |
 | `tests/test_layer0.py` | Device layer test suite |
 | `tests/test_layer1.py` | Network layer test suite |
 | `tests/test_layer2.py` | Platform layer test suite |
