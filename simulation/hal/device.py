@@ -13,6 +13,9 @@ real hardware APIs used by O.A.S.I.S. components:
 - SPIInterface: SPI (Serial Peripheral Interface) bus (S.P.A.R.K.)
 - CameraInterface: Video capture devices (M.I.R.A.G.E.)
 - MicrophoneInterface / SpeakerInterface: Audio I/O (D.A.W.N. satellite)
+- GpuTelemetryInterface: GPU temperature, power, fan, utilization and memory (S.T.A.T., local LLM hosts).
+  Unlike the others, real implementations ship here too (``simulation.live.gpu``), beside the simulated one
+  (``simulation.layer0.gpu``), so a Provider can hold whichever the available hardware supports.
 
 Docstrings use language-neutral descriptions so C HAL headers can be derived
 from the same definitions.  Python type annotations are present for static
@@ -347,3 +350,45 @@ class SpeakerInterface(ABC):
         Returns the number of bytes accepted (integer).
         """
         ...
+
+
+# ---------------------------------------------------------------------------
+# GPU telemetry
+# ---------------------------------------------------------------------------
+
+#: Keys of a GPU telemetry reading. Every key is optional: a missing or null value means the source does not
+#: report it, and implementations never substitute one metric for another.
+GPU_TELEMETRY_KEYS = ("temp_c", "power_w", "fan_rpm", "util_pct", "mem_used_mb")
+
+
+class GpuTelemetryInterface(ABC):
+    """Interface for one source of telemetry about one GPU: an operating-system interface, a vendor library, or a
+    simulation.
+
+    Attributes: ``name`` (string, the device name as this source reports it; names for one card differ between
+    sources), ``provider`` (string, a short source identifier such as ``"windows-wddm"``, ``"intel-igcl"``,
+    ``"nvml"`` or ``"simulated"``), ``pci_ids`` (pair of integers, PCI vendor and device ID, or null; the key for
+    matching one card across sources).
+    """
+
+    name: str = ""
+    provider: str = ""
+    pci_ids: Optional[tuple] = None
+
+    @abstractmethod
+    def capabilities(self) -> Dict[str, bool]:
+        """Return, for each key in GPU_TELEMETRY_KEYS, whether this source can report it for this device."""
+        ...
+
+    @abstractmethod
+    def read(self) -> Dict[str, Any]:
+        """Return one reading as a string-keyed map.
+
+        Keys: ``temp_c`` (float, degrees Celsius), ``power_w`` (float, watts), ``fan_rpm`` (float, revolutions per
+        minute), ``util_pct`` (float, 0-100, busiest engine), ``mem_used_mb`` (float, dedicated memory in use, MiB),
+        and optionally ``extra`` (map of source-specific values).  Unreported keys are null or absent.
+        """
+        ...
+
+    def close(self) -> None:
+        """Release any handles held by the source.  Optional; the default does nothing."""
